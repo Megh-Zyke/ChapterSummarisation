@@ -18,6 +18,27 @@ from generate_quiz import generate_quiz_data, import_title
 import easyocr as ocr
 import numpy as np
 from easyocr import Reader
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
+if not firebase_admin._apps:
+    cred = credentials.Certificate(r"serviceAccountKey.json")
+    firebase_admin.initialize_app(cred)
+
+db = firestore.client()
+
+page_bg_img="""
+<style>
+[data-testid="stApp"] {
+    opacity: 0.8;
+    background-image: url("https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/fd6a542d-ade9-45c7-afed-38d6dde42ed3/det8vca-35996a6f-d2fc-4c75-92cb-ff3e17e346eb.png/v1/fill/w_1280,h_720,q_80,strp/sunset_gradient_wallpaper_3840_x_2160_4k_by_themusicalhypeman_det8vca-fullview.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NzIwIiwicGF0aCI6IlwvZlwvZmQ2YTU0MmQtYWRlOS00NWM3LWFmZWQtMzhkNmRkZTQyZWQzXC9kZXQ4dmNhLTM1OTk2YTZmLWQyZmMtNGM3NS05MmNiLWZmM2UxN2UzNDZlYi5wbmciLCJ3aWR0aCI6Ijw9MTI4MCJ9XV0sImF1ZCI6WyJ1cm46c2VydmljZTppbWFnZS5vcGVyYXRpb25zIl19.bT1n6nWrYxubG7TiqrvShc4cGD1_FpCeSzcrXIWTuE8");
+    background-repeat: repeat;
+}
+</style>
+"""
+st.markdown (page_bg_img, unsafe_allow_html=True)
+
 
 # Load environment variables
 on = st.toggle('OpenDyslexic')
@@ -282,6 +303,8 @@ if uploaded_file is not None:
 if len(session_state.data) > 0:
     st.header("Here's a breakdown of all the important information in the uploaded chapter:")
     st.write(session_state.data)
+    print(session_state.data)
+
     st.success('Summary Generated!', icon="✅")
     data = {"information": session_state.data}
 
@@ -291,16 +314,22 @@ if len(session_state.data) > 0:
     with open("MainPoints.json", "w") as json_file:
         json.dump(data, json_file)
 
+
     title = import_title()
-    print(title)
     generate_quiz_data(title)
+    
+    #firebase
+    doc_ref = db.collection(u'Sumarries').document(title)
+    doc_ref.set(data)
+
+
 if len(session_state.data) > 0:
     if st.button("Generate Story"):
         with st.spinner("Generating Story..."):
             generate_story_with_image(session_state.data)
 
 
-def export_story_data(story_data):
+def export_story_data(story_data,title):
     data = {"information": story_data}
 
     if os.path.exists("story_data.json"):
@@ -308,13 +337,16 @@ def export_story_data(story_data):
 
     with open("story_data.json", "w") as json_file:
         json.dump(data, json_file)
+    
+    doc_ref = db.collection(u'Stories').document(title)
+    doc_ref.set(data)
 
 
 if len(session_state.storyData) > 0:
 
     data = []
+    title = None
     st.header("It's story time!")
-    st.subheader("Check out the carasouel to see the story !!")
     for subtopic, story in subtopic_story_pairs.items():
         subtopic_data = {
             "title": subtopic,
@@ -323,6 +355,12 @@ if len(session_state.storyData) > 0:
         }
 
         st.header(subtopic)
+
+        if title == None:
+            title = subtopic
+
+        print("subtopic", subtopic)
+        print("subtopic data", subtopic_data)
         if len(story) > 0:
             image = generate_image(story)
             st.image(image)
@@ -331,8 +369,7 @@ if len(session_state.storyData) > 0:
             continue
         st.write(story)
         data.append(subtopic_data)
-    export_story_data(data)
+    export_story_data(data,title)
+    
     st.success('Story Generation Successful!', icon="✅")
-
-    # Generate image for the subtopic here using generate_image function
 
