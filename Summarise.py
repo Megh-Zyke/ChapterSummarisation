@@ -21,8 +21,6 @@ from easyocr import Reader
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
-import extra_streamlit_components as stx
-
 
 if not firebase_admin._apps:
     cred = credentials.Certificate(r"serviceAccountKey.json")
@@ -30,12 +28,24 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
+page_bg_img="""
+<style>
+[data-testid="stApp"] {
+    opacity: 0.8;
+    background: rgb(148,0,150);
+    background: linear-gradient(0deg, rgba(148,0,150,1) 0%, rgba(0,0,80,1) 100%);
+    background-repeat: repeat;
+}
+</style>
+"""
+st.markdown (page_bg_img, unsafe_allow_html=True)
+
+
 # Load environment variables
 on = st.toggle('OpenDyslexic')
 if on:
     with open("style.css") as css:
         st.markdown(f'<style>{css.read()}</style>' , unsafe_allow_html= True)
-val = stx.stepper_bar(steps=["Learn ", "Solve your doubts", "Quiz yourself"])
 
 load_dotenv()
 
@@ -197,6 +207,8 @@ def perform_ocr(image):
         result_text += text[1] + " "  # Concatenate the text with a space
     return result_text
 
+
+
 st.title("Chapter Summarizer")
 
 uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
@@ -220,6 +232,21 @@ if uploaded_image is not None:
             summaries = summarize_chunks(chunks)
             aggregated_summary = aggregate_summaries(summaries)
             session_state.data = aggregated_summary
+
+            json_file_path = os.path.join("pdf_data", "chapter_data.json")
+
+            if len(session_state.data) > 0:
+                data = {"information": session_state.data}
+                
+                if os.path.exists(json_file_path):
+                    os.remove(json_file_path)
+                
+                if not os.path.exists("pdf_data"):
+                    os.makedirs("pdf_data")
+                
+                json_file_path = os.path.join("pdf_data", "chapter_data.json")
+                with open(json_file_path, "w") as json_file:
+                    json.dump(data, json_file)
 
 
 
