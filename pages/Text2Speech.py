@@ -18,8 +18,6 @@ page_bg_img="""
 }
 </style>
 """
-st.markdown (page_bg_img, unsafe_allow_html=True)
-
 try:
     os.mkdir("temp")
 except:
